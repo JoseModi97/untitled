@@ -1,9 +1,15 @@
+/* #root styling is now primarily in index.css for global full-screen effect.
+   The padding and max-width from here might be too restrictive for a full-screen app.
+   We will let .App and its children define their own padding and max-width if needed.
+*/
+/*
 #root {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
 }
+*/
 
 .logo {
   height: 6em;
@@ -44,7 +50,11 @@
 /* App General Styles */
 .App {
   font-family: Arial, sans-serif;
-  color: #333;
+  /* color: #333; Color is handled by :root in index.css or per component */
+  min-height: 100%; /* Changed from 100vh to 100% to work with parent's height */
+  display: flex;
+  flex-direction: column;
+  width: 100%; /* Ensure App takes full width */
 }
 
 .App-header {
@@ -110,6 +120,10 @@
 .movies-container {
   padding: 20px;
   text-align: center; /* Center the placeholder messages */
+  flex-grow: 1; /* Allows this container to take up available space if App is flex column */
+  overflow-y: auto; /* Allow scrolling if content overflows */
+  width: 100%;
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
 .movie-list {

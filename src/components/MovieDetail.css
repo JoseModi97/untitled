@@ -1,10 +1,14 @@
 .movie-detail-container {
   padding: 20px;
-  max-width: 900px;
-  margin: 20px auto;
+  /* max-width: 900px; Removed */
+  /* margin: 20px auto; Removed */
+  width: 100%; /* Make container full width */
+  box-sizing: border-box; /* Include padding in width calculation */
   background-color: #282c34; /* Similar to App.css background */
   color: white;
-  border-radius: 8px;
+  border-radius: 0; /* Optional: remove border-radius if it looks odd at full width, or keep if preferred */
+  /* min-height ensures it fills the flex-grow space in App.css's movies-container if content is short */
+  min-height: 100%;
 }
 
 .back-link {

@@ -34,8 +34,37 @@ function Home({
   // Props for default movies
   defaultMovies,
   loadingDefaultMovies,
-  defaultMoviesError
+  defaultMoviesError,
+  // Props for infinite scroll of default movies
+  fetchDefaultMovies,
+  defaultMoviesPage,
+  setDefaultMoviesPage,
+  hasMoreDefaultMovies,
+  loadingMoreDefaultMovies
 }) {
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check if we're near the bottom of the page
+      // window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - buffer
+      // A buffer (e.g., 100-200px) ensures the call is made before the user hits the absolute bottom.
+      const buffer = 200; // pixels
+      if (
+        window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - buffer &&
+        !loadingMoreDefaultMovies &&
+        hasMoreDefaultMovies
+      ) {
+        // User has scrolled to the bottom, not currently loading, and there are more movies
+        const nextPage = defaultMoviesPage + 1;
+        setDefaultMoviesPage(nextPage); // Update page count
+        fetchDefaultMovies(nextPage);   // Fetch next page
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadingMoreDefaultMovies, hasMoreDefaultMovies, defaultMoviesPage, fetchDefaultMovies, setDefaultMoviesPage]);
+
   return (
     <>
       <header className="App-header">
@@ -103,6 +132,10 @@ function Home({
             {defaultMovies.length === 0 && !loadingDefaultMovies && !defaultMoviesError && (
               <p>Start by searching for a movie above!</p>
             )}
+            {/* Loading indicator for infinite scroll */}
+            {loadingMoreDefaultMovies && <p>Loading more movies...</p>}
+            {/* Message when all default movies have been loaded */}
+            {!loadingMoreDefaultMovies && !hasMoreDefaultMovies && defaultMovies.length > 0 && <p>You've seen all movies from 2025 for this list!</p>}
           </>
         )}
       </div>
@@ -120,38 +153,65 @@ function App() {
 
   // State for default movies shown on initial load
   const [defaultMovies, setDefaultMovies] = useState([]);
-  const [loadingDefaultMovies, setLoadingDefaultMovies] = useState(false);
+  const [loadingDefaultMovies, setLoadingDefaultMovies] = useState(false); // For initial load
   const [defaultMoviesError, setDefaultMoviesError] = useState('');
+  const [defaultMoviesPage, setDefaultMoviesPage] = useState(1);
+  const [hasMoreDefaultMovies, setHasMoreDefaultMovies] = useState(true);
+  const [loadingMoreDefaultMovies, setLoadingMoreDefaultMovies] = useState(false); // For pagination
 
-  const fetchDefaultMovies = async () => {
-    setLoadingDefaultMovies(true);
-    setDefaultMoviesError('');
-    setDefaultMovies([]);
+  const fetchDefaultMovies = async (pageToFetch = 1) => {
+    if (pageToFetch === 1) {
+      setLoadingDefaultMovies(true);
+      setDefaultMoviesError('');
+      setDefaultMovies([]); // Reset for the first page
+      setHasMoreDefaultMovies(true); // Assume more until proven otherwise
+      setDefaultMoviesPage(1); // Ensure page state is reset
+    } else {
+      setLoadingMoreDefaultMovies(true);
+    }
 
     try {
-      // Search for movies from the year 2025
-      const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=movie&y=2025&type=movie`);
+      const response = await axios.get(
+        `http://www.omdbapi.com/?apikey=${API_KEY}&s=movie&y=2025&type=movie&page=${pageToFetch}`
+      );
 
       if (response.data.Response === "True" && response.data.Search) {
-        // Take up to the first 10 movies, or fewer if less are returned.
-        // The API might not always return movies that strictly match "movie" as a title,
-        // so we filter for `type=movie` again on client though API was asked for it.
-        // Also, "random" is hard with this API; we're taking the API's default sort for the search term.
-        const movies2025 = response.data.Search.filter(movie => movie.Type === 'movie').slice(0, 10);
-        if (movies2025.length > 0) {
-          setDefaultMovies(movies2025);
-        } else {
+        const newMovies = response.data.Search.filter(movie => movie.Type === 'movie');
+
+        if (newMovies.length > 0) {
+          setDefaultMovies(prevMovies => pageToFetch === 1 ? newMovies : [...prevMovies, ...newMovies]);
+          const totalResults = parseInt(response.data.totalResults, 10);
+          // Check if current movies + new movies >= totalResults
+          // Need to access defaultMovies directly from state if pageToFetch > 1 for accurate length
+          const currentMovieCount = pageToFetch === 1 ? newMovies.length : defaultMovies.length + newMovies.length;
+          if (currentMovieCount >= totalResults) {
+            setHasMoreDefaultMovies(false);
+          }
+        } else if (pageToFetch === 1) { // No movies found on the very first fetch
           setDefaultMoviesError('No movies found for 2025 at this time. Try searching manually!');
+          setHasMoreDefaultMovies(false);
+        } else { // No more movies found on subsequent fetches
+          setHasMoreDefaultMovies(false);
         }
-      } else {
-        // Handle cases where Response is "False" or Search array is missing
-        setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
+      } else { // API response is "False" or Search array is missing
+        if (pageToFetch === 1) {
+          setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
+        }
+        setHasMoreDefaultMovies(false); // No more results if API error or no data
       }
     } catch (err) {
-      console.error("Error fetching 2025 movies:", err);
-      setDefaultMoviesError('An error occurred while fetching movies for 2025.');
+      console.error(`Error fetching 2025 movies (page ${pageToFetch}):`, err);
+      if (pageToFetch === 1) {
+        setDefaultMoviesError('An error occurred while fetching movies for 2025.');
+      }
+      setHasMoreDefaultMovies(false); // Stop trying if there's an error
+    } finally {
+      if (pageToFetch === 1) {
+        setLoadingDefaultMovies(false);
+      } else {
+        setLoadingMoreDefaultMovies(false);
+      }
     }
-    setLoadingDefaultMovies(false);
   };
 
   const handleSearch = async () => {
@@ -219,6 +279,12 @@ function App() {
               defaultMovies={defaultMovies}
               loadingDefaultMovies={loadingDefaultMovies}
               defaultMoviesError={defaultMoviesError}
+              // Props for infinite scroll of default movies
+              fetchDefaultMovies={fetchDefaultMovies}
+              defaultMoviesPage={defaultMoviesPage}
+              setDefaultMoviesPage={setDefaultMoviesPage}
+              hasMoreDefaultMovies={hasMoreDefaultMovies}
+              loadingMoreDefaultMovies={loadingMoreDefaultMovies}
             />
           }
         />

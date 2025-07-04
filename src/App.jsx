@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
@@ -6,10 +6,32 @@ import './App.css';
 // API Key -
 const API_KEY = '67b85ad0'; // User's API key
 
+const INITIAL_SEARCH_TERMS = [
+  "movies 2025",
+  "action 2025",
+  "comedy 2025",
+  "sci-fi 2025",
+  "drama 2025",
+  "thriller 2025",
+  "adventure 2025"
+];
+
 import MovieCard from './components/MovieCard'; // Import MovieCard
 import MovieDetail from './components/MovieDetail';
 
-function Home({ searchQuery, handleInputChange, handleSubmit, loading, error, movies, searched }) {
+function Home({
+  searchQuery,
+  handleInputChange,
+  handleSubmit,
+  loading,
+  error,
+  movies,
+  searched,
+  // Props for default movies
+  defaultMovies,
+  loadingDefaultMovies,
+  defaultMoviesError
+}) {
   return (
     <>
       <header className="App-header">
@@ -22,23 +44,60 @@ function Home({ searchQuery, handleInputChange, handleSubmit, loading, error, mo
             placeholder="Search for a movie..."
             className="search-input"
           />
-          <button type="submit" disabled={loading || !searchQuery.trim()} className="search-button">
+          <button
+            type="submit"
+            disabled={loading || loadingDefaultMovies || !searchQuery.trim()} // Also disable if default movies are loading
+            className="search-button"
+          >
             {loading ? 'Searching...' : 'Search'}
           </button>
         </form>
       </header>
 
+      {/* User search error takes precedence */}
       {error && <p className="error-message">{error}</p>}
 
       <div className="movies-container">
+        {/* User search loading */}
         {loading && !error && <p>Loading movies...</p>}
-        {!loading && !error && movies.length === 0 && searched && <p>No movies found for your query. Try another search!</p>}
+
+        {/* User search results */}
         {!loading && !error && movies.length > 0 && (
-          <div className="movie-list">
-            {movies.map(movie => (
-              <MovieCard key={movie.imdbID} movie={movie} />
-            ))}
-          </div>
+          <>
+            <h2>Search Results</h2>
+            <div className="movie-list">
+              {movies.map(movie => (
+                <MovieCard key={movie.imdbID} movie={movie} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* User searched, no results from user's query, and no overriding error */}
+        {!loading && !error && movies.length === 0 && searched && (
+          <p>No movies found for your query. Try another search!</p>
+        )}
+
+        {/* Default movies display - only if no user search is active or has produced results/errors */}
+        {!loading && !error && movies.length === 0 && !searched && (
+          <>
+            {loadingDefaultMovies && <p>Loading initial movie suggestions...</p>}
+            {defaultMoviesError && !loadingDefaultMovies && <p className="error-message">{defaultMoviesError}</p>}
+            {defaultMovies.length > 0 && !loadingDefaultMovies && !defaultMoviesError && (
+              <>
+                <h2>Latest from 2025</h2>
+                <div className="movie-list">
+                  {defaultMovies.map(movie => (
+                    <MovieCard key={movie.imdbID} movie={movie} />
+                  ))}
+                </div>
+              </>
+            )}
+            {/* Case where default movies also returned empty or had an error handled above */}
+            {defaultMovies.length === 0 && !loadingDefaultMovies && !defaultMoviesError && (
+              <p>Start by searching for a movie above!</p>
+            )}
+          </>
         )}
       </div>
     </>
@@ -52,6 +111,36 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+
+  // State for default movies shown on initial load
+  const [defaultMovies, setDefaultMovies] = useState([]);
+  const [loadingDefaultMovies, setLoadingDefaultMovies] = useState(false);
+  const [defaultMoviesError, setDefaultMoviesError] = useState('');
+
+  const fetchDefaultMovies = async () => {
+    setLoadingDefaultMovies(true);
+    setDefaultMoviesError('');
+    setDefaultMovies([]); // Clear previous default movies
+
+    const randomIndex = Math.floor(Math.random() * INITIAL_SEARCH_TERMS.length);
+    const searchTerm = INITIAL_SEARCH_TERMS[randomIndex];
+
+    try {
+      // console.log(`Fetching default movies with term: ${searchTerm}`);
+      const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=${searchTerm}`);
+      if (response.data.Response === "True") {
+        setDefaultMovies(response.data.Search.slice(0, 10)); // Take up to 10 movies
+      } else {
+        setDefaultMoviesError(response.data.Error || `No initial movies found for "${searchTerm}".`);
+        setDefaultMovies([]);
+      }
+    } catch (err) {
+      console.error("API Error fetching default movies:", err);
+      setDefaultMoviesError('Failed to fetch initial movie suggestions. Check connection.');
+      setDefaultMovies([]);
+    }
+    setLoadingDefaultMovies(false);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -96,6 +185,10 @@ function App() {
     handleSearch();
   };
 
+  useEffect(() => {
+    fetchDefaultMovies();
+  }, []); // Empty dependency array means this runs once on mount
+
   return (
     <div className="App">
       <Routes>
@@ -110,6 +203,10 @@ function App() {
               error={error}
               movies={movies}
               searched={searched}
+              // Pass default movie related props
+              defaultMovies={defaultMovies}
+              loadingDefaultMovies={loadingDefaultMovies}
+              defaultMoviesError={defaultMoviesError}
             />
           }
         />

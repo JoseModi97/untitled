@@ -34,8 +34,37 @@ function Home({
   // Props for default movies
   defaultMovies,
   loadingDefaultMovies,
-  defaultMoviesError
+  defaultMoviesError,
+  // Props for infinite scroll of default movies
+  fetchDefaultMovies,
+  defaultMoviesPage,
+  setDefaultMoviesPage,
+  hasMoreDefaultMovies,
+  loadingMoreDefaultMovies
 }) {
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check if we're near the bottom of the page
+      // window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - buffer
+      // A buffer (e.g., 100-200px) ensures the call is made before the user hits the absolute bottom.
+      const buffer = 200; // pixels
+      if (
+        window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - buffer &&
+        !loadingMoreDefaultMovies &&
+        hasMoreDefaultMovies
+      ) {
+        // User has scrolled to the bottom, not currently loading, and there are more movies
+        const nextPage = defaultMoviesPage + 1;
+        setDefaultMoviesPage(nextPage); // Update page count
+        fetchDefaultMovies(nextPage);   // Fetch next page
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loadingMoreDefaultMovies, hasMoreDefaultMovies, defaultMoviesPage, fetchDefaultMovies, setDefaultMoviesPage]);
+
   return (
     <>
       <header className="App-header">
@@ -103,6 +132,10 @@ function Home({
             {defaultMovies.length === 0 && !loadingDefaultMovies && !defaultMoviesError && (
               <p>Start by searching for a movie above!</p>
             )}
+            {/* Loading indicator for infinite scroll */}
+            {loadingMoreDefaultMovies && <p>Loading more movies...</p>}
+            {/* Message when all default movies have been loaded */}
+            {!loadingMoreDefaultMovies && !hasMoreDefaultMovies && defaultMovies.length > 0 && <p>You've seen all movies from 2025 for this list!</p>}
           </>
         )}
       </div>
@@ -120,38 +153,86 @@ function App() {
 
   // State for default movies shown on initial load
   const [defaultMovies, setDefaultMovies] = useState([]);
-  const [loadingDefaultMovies, setLoadingDefaultMovies] = useState(false);
+  const [loadingDefaultMovies, setLoadingDefaultMovies] = useState(false); // For initial load
   const [defaultMoviesError, setDefaultMoviesError] = useState('');
+  const [defaultMoviesPage, setDefaultMoviesPage] = useState(1);
+  const [hasMoreDefaultMovies, setHasMoreDefaultMovies] = useState(true);
+  const [loadingMoreDefaultMovies, setLoadingMoreDefaultMovies] = useState(false); // For pagination
 
-  const fetchDefaultMovies = async () => {
-    setLoadingDefaultMovies(true);
-    setDefaultMoviesError('');
-    setDefaultMovies([]);
+  const fetchDefaultMovies = async (pageToFetch = 1) => {
+    if (pageToFetch === 1) {
+      setLoadingDefaultMovies(true);
+      setDefaultMoviesError('');
+      setDefaultMovies([]); // Reset for the first page
+      setHasMoreDefaultMovies(true); // Assume more until proven otherwise
+      setDefaultMoviesPage(1); // Ensure page state is reset
+    } else {
+      setLoadingMoreDefaultMovies(true);
+    }
 
     try {
-      // Search for movies from the year 2025
-      const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=movie&y=2025&type=movie`);
+      const response = await axios.get(
+        `http://www.omdbapi.com/?apikey=${API_KEY}&s=movie&y=2025&type=movie&page=${pageToFetch}`
+      );
 
       if (response.data.Response === "True" && response.data.Search) {
-        // Take up to the first 10 movies, or fewer if less are returned.
-        // The API might not always return movies that strictly match "movie" as a title,
-        // so we filter for `type=movie` again on client though API was asked for it.
-        // Also, "random" is hard with this API; we're taking the API's default sort for the search term.
-        const movies2025 = response.data.Search.filter(movie => movie.Type === 'movie').slice(0, 10);
-        if (movies2025.length > 0) {
-          setDefaultMovies(movies2025);
-        } else {
-          setDefaultMoviesError('No movies found for 2025 at this time. Try searching manually!');
+        // Filter for type 'movie' and ensure Poster is available
+        let fetchedMovies = response.data.Search.filter(
+          movie => movie.Type === 'movie' && movie.Poster !== "N/A"
+        );
+
+        // For paginated calls, filter out duplicates already present in defaultMovies
+        // This needs to be done within the functional update of setDefaultMovies to access previous state correctly
+
+        setDefaultMovies(prevMovies => {
+          let uniqueNewMovies;
+          if (pageToFetch === 1) {
+            uniqueNewMovies = fetchedMovies; // For page 1, all (poster-checked) fetched movies are potentially new
+          } else {
+            const existingIds = new Set(prevMovies.map(m => m.imdbID));
+            uniqueNewMovies = fetchedMovies.filter(movie => !existingIds.has(movie.imdbID));
+          }
+
+          if (uniqueNewMovies.length > 0) {
+            const updatedMovies = pageToFetch === 1 ? uniqueNewMovies : [...prevMovies, ...uniqueNewMovies];
+            const totalResults = parseInt(response.data.totalResults, 10);
+            // totalResults from API is for the original query, not filtered by poster/uniqueness.
+            // So, if uniqueNewMovies is empty, or we've fetched all pages indicated by totalResults, stop.
+            // Check against API's total results (divided by items per page, typically 10)
+            const approxTotalPages = Math.ceil(totalResults / 10);
+            if (pageToFetch >= approxTotalPages || uniqueNewMovies.length < fetchedMovies.length && fetchedMovies.length <10 ) {
+              // If we are on/past the approx total pages, or if we filtered out items from a partial last page from API
+              setHasMoreDefaultMovies(false);
+            }
+            return updatedMovies;
+          } else {
+            // No new unique movies with posters found in this batch
+            if (pageToFetch === 1) {
+              setDefaultMoviesError('No movies with posters found for 2025. Try searching!');
+            }
+            setHasMoreDefaultMovies(false); // Stop if current page yields no valid new movies
+            return prevMovies; // Return previous state if no new valid movies
+          }
+        });
+      } else { // API response is "False" or Search array is missing (e.g. page out of bounds)
+        if (pageToFetch === 1) {
+          setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
         }
-      } else {
-        // Handle cases where Response is "False" or Search array is missing
-        setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
+        setHasMoreDefaultMovies(false); // No more results if API error or no data
       }
     } catch (err) {
-      console.error("Error fetching 2025 movies:", err);
-      setDefaultMoviesError('An error occurred while fetching movies for 2025.');
+      console.error(`Error fetching 2025 movies (page ${pageToFetch}):`, err);
+      if (pageToFetch === 1) {
+        setDefaultMoviesError('An error occurred while fetching movies for 2025.');
+      }
+      setHasMoreDefaultMovies(false); // Stop trying if there's an error
+    } finally {
+      if (pageToFetch === 1) {
+        setLoadingDefaultMovies(false);
+      } else {
+        setLoadingMoreDefaultMovies(false);
+      }
     }
-    setLoadingDefaultMovies(false);
   };
 
   const handleSearch = async () => {
@@ -168,9 +249,27 @@ function App() {
 
     try {
       const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=${searchQuery}`);
-      if (response.data.Response === "True") {
-        setMovies(response.data.Search);
-        setError('');
+      if (response.data.Response === "True" && response.data.Search) {
+        // Filter for poster and uniqueness
+        const fetchedMovies = response.data.Search;
+        const moviesWithPosters = fetchedMovies.filter(movie => movie.Poster !== "N/A");
+
+        const uniqueMoviesWithPosters = [];
+        const seenIds = new Set();
+        for (const movie of moviesWithPosters) {
+          if (!seenIds.has(movie.imdbID)) {
+            uniqueMoviesWithPosters.push(movie);
+            seenIds.add(movie.imdbID);
+          }
+        }
+
+        if (uniqueMoviesWithPosters.length > 0) {
+          setMovies(uniqueMoviesWithPosters);
+          setError('');
+        } else {
+          setMovies([]);
+          setError('No movies found with posters matching your query. Try a different search.');
+        }
       } else {
         setMovies([]);
         setError(response.data.Error || 'No movies found.');
@@ -219,6 +318,12 @@ function App() {
               defaultMovies={defaultMovies}
               loadingDefaultMovies={loadingDefaultMovies}
               defaultMoviesError={defaultMoviesError}
+              // Props for infinite scroll of default movies
+              fetchDefaultMovies={fetchDefaultMovies}
+              defaultMoviesPage={defaultMoviesPage}
+              setDefaultMoviesPage={setDefaultMoviesPage}
+              hasMoreDefaultMovies={hasMoreDefaultMovies}
+              loadingMoreDefaultMovies={loadingMoreDefaultMovies}
             />
           }
         />

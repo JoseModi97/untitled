@@ -54,20 +54,6 @@ const MovieDetail = ({ apiKey }) => {
         <div className="movie-detail-info">
           <h1>{movieDetails.Title} ({movieDetails.Year})</h1>
 
-          {/* Embedded Video Player */}
-          {id && (
-            <div className="video-player-container"> {/* Will style this container for responsiveness */}
-              <iframe
-                src={`https://vidsrc.xyz/embed/movie/${id}`}
-                title={`Watch ${movieDetails.Title}`}
-                frameBorder="0"
-                allow="autoplay; encrypted-media; picture-in-picture"
-                allowFullScreen
-                className="movie-detail-player-iframe" // For specific iframe styling if needed
-              ></iframe>
-            </div>
-          )}
-
           <p><strong>Rated:</strong> {movieDetails.Rated}</p>
           <p><strong>Released:</strong> {movieDetails.Released}</p>
           <p><strong>Runtime:</strong> {movieDetails.Runtime}</p>
@@ -92,6 +78,19 @@ const MovieDetail = ({ apiKey }) => {
           <p><strong>IMDb Rating:</strong> {movieDetails.imdbRating} ({movieDetails.imdbVotes} votes)</p>
         </div>
       </div>
+      {/* Embedded Video Player - Moved here */}
+      {id && (
+        <div className="video-player-container">
+          <iframe
+            src={`https://vidsrc.xyz/embed/movie/${id}`}
+            title={`Watch ${movieDetails.Title}`}
+            frameBorder="0"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowFullScreen
+            className="movie-detail-player-iframe"
+          ></iframe>
+        </div>
+      )}
     </div>
   );
 };

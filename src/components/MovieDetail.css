@@ -1,5 +1,5 @@
 .movie-detail-container {
-  padding: 15px; /* Reduced padding */
+  padding: 10px; /* Further reduced padding */
   /* max-width: 900px; Removed */
   /* margin: 20px auto; Removed */
   width: 100%; /* Make container full width */
@@ -19,7 +19,8 @@
   overflow: hidden;
   width: 100%;
   padding-top: 56.25%; /* 16:9 Aspect Ratio (divides 9 by 16 = 0.5625) */
-  margin-bottom: 15px; /* Space below the player */
+  margin-top: 15px; /* Space above the player (since it's now at the bottom of the container) */
+  margin-bottom: 10px; /* Reduced space below the player */
   background-color: #000; /* Optional: background for the container before iframe loads */
 }
 
@@ -36,7 +37,7 @@
 
 .back-link {
   display: inline-block;
-  margin-bottom: 15px; /* Reduced margin for consistency */
+  margin-bottom: 10px; /* Further reduced margin */
   color: #61dafb; /* React blue */
   text-decoration: none;
   font-size: 1.1em;
@@ -48,7 +49,7 @@
 
 .movie-detail-content {
   display: flex;
-  gap: 15px; /* Reduced gap */
+  gap: 10px; /* Further reduced gap */
 }
 
 .movie-detail-poster {
@@ -65,15 +66,15 @@
 }
 
 .movie-detail-info h1 {
-  font-size: 2.0em; /* Reduced font size */
+  font-size: 1.8em; /* Further reduced font size */
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 8px; /* Reduced margin */
   color: #61dafb;
 }
 
 .movie-detail-info p {
-  margin-bottom: 6px; /* Reduced margin */
-  line-height: 1.5; /* Slightly reduced line-height for compactness */
+  margin-bottom: 4px; /* Further reduced margin */
+  line-height: 1.4; /* Further reduced line-height */
 }
 
 .movie-detail-info strong {
@@ -81,11 +82,11 @@
 }
 
 .movie-detail-info h3 { /* For "Ratings:" heading */
-  margin-top: 20px;
-  margin-bottom: 10px;
+  margin-top: 15px; /* Reduced margin */
+  margin-bottom: 8px; /* Reduced margin */
   color: #61dafb;
   border-bottom: 1px solid #444;
-  padding-bottom: 5px;
+  padding-bottom: 4px; /* Reduced padding */
 }
 
 .movie-detail-info ul {
@@ -94,7 +95,7 @@
 }
 
 .movie-detail-info ul li {
-  margin-bottom: 4px; /* Reduced margin */
+  margin-bottom: 3px; /* Further reduced margin */
 }
 
 .error-message { /* Shared error message styling */

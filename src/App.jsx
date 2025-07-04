@@ -62,7 +62,7 @@ function Home({
             value={searchQuery}
             onChange={handleInputChange}
             placeholder="Search for a movie..."
-            className="search-input"
+            className={`search-input ${loadingDefaultMovies || loading ? 'loading-active' : ''}`}
           />
           <button
             type="submit"
@@ -78,8 +78,8 @@ function Home({
       {error && <p className="error-message">{error}</p>}
 
       <div className="movies-container">
-        {/* User search loading */}
-        {loading && !error && <p>Loading movies...</p>}
+        {/* User search loading: Text removed, handled by input animation */}
+        {/* {loading && !error && <p>Loading movies...</p>} */}
 
         {/* User search results */}
         {!loading && !error && movies.length > 0 && (
@@ -99,9 +99,11 @@ function Home({
         )}
 
         {/* Default movies display - only if no user search is active or has produced results/errors */}
+        {/* Also ensure user search is not loading */}
         {!loading && !error && movies.length === 0 && !searched && (
           <>
-            {loadingDefaultMovies && <p>Loading initial movie suggestions...</p>}
+            {/* Default movies loading: Text removed, handled by input animation */}
+            {/* {loadingDefaultMovies && <p>Loading initial movie suggestions...</p>} */}
             {defaultMoviesError && !loadingDefaultMovies && <p className="error-message">{defaultMoviesError}</p>}
             {defaultMovies.length > 0 && !loadingDefaultMovies && !defaultMoviesError && (
               <>

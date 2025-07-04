@@ -1,5 +1,5 @@
 .movie-detail-container {
-  padding: 20px;
+  padding: 15px; /* Reduced padding */
   /* max-width: 900px; Removed */
   /* margin: 20px auto; Removed */
   width: 100%; /* Make container full width */
@@ -15,7 +15,7 @@
 
 .back-link {
   display: inline-block;
-  margin-bottom: 20px;
+  margin-bottom: 15px; /* Reduced margin for consistency */
   color: #61dafb; /* React blue */
   text-decoration: none;
   font-size: 1.1em;
@@ -27,7 +27,7 @@
 
 .movie-detail-content {
   display: flex;
-  gap: 20px;
+  gap: 15px; /* Reduced gap */
 }
 
 .movie-detail-poster {
@@ -44,15 +44,15 @@
 }
 
 .movie-detail-info h1 {
-  font-size: 2.5em;
+  font-size: 2.0em; /* Reduced font size */
   margin-top: 0;
   margin-bottom: 10px;
   color: #61dafb;
 }
 
 .movie-detail-info p {
-  margin-bottom: 8px;
-  line-height: 1.6;
+  margin-bottom: 6px; /* Reduced margin */
+  line-height: 1.5; /* Slightly reduced line-height for compactness */
 }
 
 .movie-detail-info strong {
@@ -73,7 +73,7 @@
 }
 
 .movie-detail-info ul li {
-  margin-bottom: 5px;
+  margin-bottom: 4px; /* Reduced margin */
 }
 
 .error-message { /* Shared error message styling */

@@ -1,7 +1,7 @@
 .movie-card {
   border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 10px;
+  padding: 8px; /* Reduced padding */
   width: 200px;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -18,7 +18,8 @@
 
 .movie-card-poster {
   width: 100%;
-  height: 300px; /* Fixed height for uniform card size */
+  height: auto; /* Changed for flexibility */
+  max-height: 270px; /* Added max-height to control size */
   object-fit: cover; /* Scales image to cover, cropping if necessary */
   border-radius: 6px;
   margin-bottom: 10px;

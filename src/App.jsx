@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { Routes, Route, Link } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 
@@ -6,13 +7,51 @@ import './App.css';
 const API_KEY = '67b85ad0'; // User's API key
 
 import MovieCard from './components/MovieCard'; // Import MovieCard
+import MovieDetail from './components/MovieDetail';
+
+function Home({ searchQuery, handleInputChange, handleSubmit, loading, error, movies, searched }) {
+  return (
+    <>
+      <header className="App-header">
+        <h1><Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>Movie Search</Link></h1>
+        <form onSubmit={handleSubmit} className="search-form">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleInputChange}
+            placeholder="Search for a movie..."
+            className="search-input"
+          />
+          <button type="submit" disabled={loading || !searchQuery.trim()} className="search-button">
+            {loading ? 'Searching...' : 'Search'}
+          </button>
+        </form>
+      </header>
+
+      {error && <p className="error-message">{error}</p>}
+
+      <div className="movies-container">
+        {loading && !error && <p>Loading movies...</p>}
+        {!loading && !error && movies.length === 0 && searched && <p>No movies found for your query. Try another search!</p>}
+        {!loading && !error && movies.length > 0 && (
+          <div className="movie-list">
+            {movies.map(movie => (
+              <MovieCard key={movie.imdbID} movie={movie} />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 
 function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searched, setSearched] = useState(false); // To track if a search has been performed
+  const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -45,49 +84,37 @@ function App() {
 
   const handleInputChange = (event) => {
     setSearchQuery(event.target.value);
-    if (searched && event.target.value.trim() === '') { // Clear results if input is cleared after a search
-        setMovies([]);
-        setError('');
-        setSearched(false);
+    if (searched && event.target.value.trim() === '') {
+      setMovies([]);
+      setError('');
+      setSearched(false);
     }
   };
 
   const handleSubmit = (event) => {
-    event.preventDefault(); // Prevent form submission from reloading the page
+    event.preventDefault();
     handleSearch();
   };
 
   return (
     <div className="App">
-      <header className="App-header">
-        <h1>Movie Search</h1>
-        <form onSubmit={handleSubmit} className="search-form">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleInputChange}
-            placeholder="Search for a movie..."
-            className="search-input"
-          />
-          <button type="submit" disabled={loading || !searchQuery.trim()} className="search-button">
-            {loading ? 'Searching...' : 'Search'}
-          </button>
-        </form>
-      </header>
-
-      {error && <p className="error-message">{error}</p>}
-
-      <div className="movies-container">
-        {loading && !error && <p>Loading movies...</p>}
-        {!loading && !error && movies.length === 0 && searched && <p>No movies found for your query. Try another search!</p>}
-        {!loading && !error && movies.length > 0 && (
-          <div className="movie-list"> {/* Changed ul to div for more flexible styling if needed */}
-            {movies.map(movie => (
-              <MovieCard key={movie.imdbID} movie={movie} />
-            ))}
-          </div>
-        )}
-      </div>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Home
+              searchQuery={searchQuery}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              loading={loading}
+              error={error}
+              movies={movies}
+              searched={searched}
+            />
+          }
+        />
+        <Route path="/movie/:id" element={<MovieDetail apiKey={API_KEY} />} />
+      </Routes>
     </div>
   );
 }

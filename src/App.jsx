@@ -176,24 +176,45 @@ function App() {
       );
 
       if (response.data.Response === "True" && response.data.Search) {
-        const newMovies = response.data.Search.filter(movie => movie.Type === 'movie');
+        // Filter for type 'movie' and ensure Poster is available
+        let fetchedMovies = response.data.Search.filter(
+          movie => movie.Type === 'movie' && movie.Poster !== "N/A"
+        );
 
-        if (newMovies.length > 0) {
-          setDefaultMovies(prevMovies => pageToFetch === 1 ? newMovies : [...prevMovies, ...newMovies]);
-          const totalResults = parseInt(response.data.totalResults, 10);
-          // Check if current movies + new movies >= totalResults
-          // Need to access defaultMovies directly from state if pageToFetch > 1 for accurate length
-          const currentMovieCount = pageToFetch === 1 ? newMovies.length : defaultMovies.length + newMovies.length;
-          if (currentMovieCount >= totalResults) {
-            setHasMoreDefaultMovies(false);
+        // For paginated calls, filter out duplicates already present in defaultMovies
+        // This needs to be done within the functional update of setDefaultMovies to access previous state correctly
+
+        setDefaultMovies(prevMovies => {
+          let uniqueNewMovies;
+          if (pageToFetch === 1) {
+            uniqueNewMovies = fetchedMovies; // For page 1, all (poster-checked) fetched movies are potentially new
+          } else {
+            const existingIds = new Set(prevMovies.map(m => m.imdbID));
+            uniqueNewMovies = fetchedMovies.filter(movie => !existingIds.has(movie.imdbID));
           }
-        } else if (pageToFetch === 1) { // No movies found on the very first fetch
-          setDefaultMoviesError('No movies found for 2025 at this time. Try searching manually!');
-          setHasMoreDefaultMovies(false);
-        } else { // No more movies found on subsequent fetches
-          setHasMoreDefaultMovies(false);
-        }
-      } else { // API response is "False" or Search array is missing
+
+          if (uniqueNewMovies.length > 0) {
+            const updatedMovies = pageToFetch === 1 ? uniqueNewMovies : [...prevMovies, ...uniqueNewMovies];
+            const totalResults = parseInt(response.data.totalResults, 10);
+            // totalResults from API is for the original query, not filtered by poster/uniqueness.
+            // So, if uniqueNewMovies is empty, or we've fetched all pages indicated by totalResults, stop.
+            // Check against API's total results (divided by items per page, typically 10)
+            const approxTotalPages = Math.ceil(totalResults / 10);
+            if (pageToFetch >= approxTotalPages || uniqueNewMovies.length < fetchedMovies.length && fetchedMovies.length <10 ) {
+              // If we are on/past the approx total pages, or if we filtered out items from a partial last page from API
+              setHasMoreDefaultMovies(false);
+            }
+            return updatedMovies;
+          } else {
+            // No new unique movies with posters found in this batch
+            if (pageToFetch === 1) {
+              setDefaultMoviesError('No movies with posters found for 2025. Try searching!');
+            }
+            setHasMoreDefaultMovies(false); // Stop if current page yields no valid new movies
+            return prevMovies; // Return previous state if no new valid movies
+          }
+        });
+      } else { // API response is "False" or Search array is missing (e.g. page out of bounds)
         if (pageToFetch === 1) {
           setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
         }
@@ -228,9 +249,27 @@ function App() {
 
     try {
       const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=${searchQuery}`);
-      if (response.data.Response === "True") {
-        setMovies(response.data.Search);
-        setError('');
+      if (response.data.Response === "True" && response.data.Search) {
+        // Filter for poster and uniqueness
+        const fetchedMovies = response.data.Search;
+        const moviesWithPosters = fetchedMovies.filter(movie => movie.Poster !== "N/A");
+
+        const uniqueMoviesWithPosters = [];
+        const seenIds = new Set();
+        for (const movie of moviesWithPosters) {
+          if (!seenIds.has(movie.imdbID)) {
+            uniqueMoviesWithPosters.push(movie);
+            seenIds.add(movie.imdbID);
+          }
+        }
+
+        if (uniqueMoviesWithPosters.length > 0) {
+          setMovies(uniqueMoviesWithPosters);
+          setError('');
+        } else {
+          setMovies([]);
+          setError('No movies found with posters matching your query. Try a different search.');
+        }
       } else {
         setMovies([]);
         setError(response.data.Error || 'No movies found.');

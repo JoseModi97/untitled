@@ -18,23 +18,7 @@ const INITIAL_SEARCH_TERMS = [
 ];
 */
 
-const FEATURED_MOVIE_IDS = [
-  'tt0111161', // The Shawshank Redemption (1994)
-  'tt0068646', // The Godfather (1972)
-  'tt0468569', // The Dark Knight (2008)
-  'tt0133093', // The Matrix (1999)
-  'tt0109830', // Forrest Gump (1994)
-  'tt1375666', // Inception (2010)
-  'tt0088763', // Back to the Future (1985)
-  'tt0120338', // Titanic (1997)
-  'tt0103064', // Terminator 2: Judgment Day (1991)
-  'tt0076759', // Star Wars: Episode IV - A New Hope (1977)
-  'tt0167260', // The Lord of the Rings: The Return of the King (2003)
-  'tt0080684', // Star Wars: Episode V - The Empire Strikes Back (1980)
-  'tt0137523', // Fight Club (1999)
-  'tt0816692', // Interstellar (2014)
-  'tt0120737', // The Lord of the Rings: The Fellowship of the Ring (2001)
-];
+// const FEATURED_MOVIE_IDS = [ ... ]; // Removed as we are now fetching 2025 movies by search
 
 import MovieCard from './components/MovieCard'; // Import MovieCard
 import MovieDetail from './components/MovieDetail';
@@ -107,7 +91,7 @@ function Home({
             {defaultMoviesError && !loadingDefaultMovies && <p className="error-message">{defaultMoviesError}</p>}
             {defaultMovies.length > 0 && !loadingDefaultMovies && !defaultMoviesError && (
               <>
-                <h2>Featured Movies</h2>
+                <h2>Movies from 2025</h2>
                 <div className="movie-list">
                   {defaultMovies.map(movie => (
                     <MovieCard key={movie.imdbID} movie={movie} />
@@ -144,33 +128,28 @@ function App() {
     setDefaultMoviesError('');
     setDefaultMovies([]);
 
-    // Shuffle FEATURED_MOVIE_IDS and pick the first 7
-    const shuffledIds = [...FEATURED_MOVIE_IDS].sort(() => 0.5 - Math.random());
-    const selectedIds = shuffledIds.slice(0, 7);
-
-    const moviePromises = selectedIds.map(id =>
-      axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&i=${id}`)
-    );
-
     try {
-      const results = await Promise.allSettled(moviePromises);
-      const successfullyFetchedMovies = [];
-      results.forEach(result => {
-        if (result.status === 'fulfilled' && result.value.data.Response === "True") {
-          successfullyFetchedMovies.push(result.value.data);
-        } else if (result.status === 'rejected' || result.value.data.Response === "False") {
-          // Log individual error if needed, e.g., console.error("Failed to fetch movie:", result.reason || result.value.data.Error);
-        }
-      });
+      // Search for movies from the year 2025
+      const response = await axios.get(`http://www.omdbapi.com/?apikey=${API_KEY}&s=movie&y=2025&type=movie`);
 
-      if (successfullyFetchedMovies.length > 0) {
-        setDefaultMovies(successfullyFetchedMovies);
+      if (response.data.Response === "True" && response.data.Search) {
+        // Take up to the first 10 movies, or fewer if less are returned.
+        // The API might not always return movies that strictly match "movie" as a title,
+        // so we filter for `type=movie` again on client though API was asked for it.
+        // Also, "random" is hard with this API; we're taking the API's default sort for the search term.
+        const movies2025 = response.data.Search.filter(movie => movie.Type === 'movie').slice(0, 10);
+        if (movies2025.length > 0) {
+          setDefaultMovies(movies2025);
+        } else {
+          setDefaultMoviesError('No movies found for 2025 at this time. Try searching manually!');
+        }
       } else {
-        setDefaultMoviesError('Could not load any featured movies at this time.');
+        // Handle cases where Response is "False" or Search array is missing
+        setDefaultMoviesError(response.data.Error || 'Could not find movies from 2025.');
       }
-    } catch (err) { // This catch block might be redundant if allSettled handles all individual errors.
-      console.error("Unexpected error in fetchDefaultMovies Promise.allSettled:", err);
-      setDefaultMoviesError('An unexpected error occurred while fetching featured movies.');
+    } catch (err) {
+      console.error("Error fetching 2025 movies:", err);
+      setDefaultMoviesError('An error occurred while fetching movies for 2025.');
     }
     setLoadingDefaultMovies(false);
   };
